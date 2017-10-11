@@ -112,7 +112,7 @@ extension ViewController: WKNavigationDelegate {
             
             // Reset keyboard and put web view back to how it was.
             if let id = activeId {
-                self.webView.evaluateJavaScript("document.getElementById('\(id)').id=''", completionHandler: nil)
+                self.webView.evaluateJavaScript("document.getElementById('\(id)').id=null", completionHandler: nil)
                 self.input.text = nil
             }
             
