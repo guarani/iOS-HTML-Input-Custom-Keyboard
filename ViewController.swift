@@ -54,6 +54,7 @@ class ViewController: UIViewController {
 
     var input: Input!
     var webView: WKWebView!
+    var activeId: String?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -62,14 +63,19 @@ class ViewController: UIViewController {
         let keyboardView = UINib(nibName: "KeyboardView", bundle: nil).instantiate(withOwner: nil, options: nil).first! as! KeyboardView
         keyboardView.frame = CGRect(x: 0, y: 0, width: 37, height: 216)
         keyboardView.callback = { text in
-            self.input.insertText(text ?? "")
-            self.webView.evaluateJavaScript("document.getElementById('the_active_id').value='" + (self.input.text ?? "") + "'", completionHandler: nil)
+            if let id = self.activeId {
+                self.input.insertText(text ?? "")
+                let val = self.input.text ?? ""
+                self.webView.evaluateJavaScript("document.getElementById('\(id)').value='" + val + "'", completionHandler: nil)
+            }
         }
         keyboardView.clear = {
-            self.input.deleteBackward()
-            self.webView.evaluateJavaScript("document.getElementById('the_active_id').value='" + (self.input.text ?? "") + "'", completionHandler: nil)
+            if let id = self.activeId {
+                self.input.deleteBackward()
+                let val = self.input.text ?? ""
+                self.webView.evaluateJavaScript("document.getElementById('\(id)').value='" + val + "'", completionHandler: nil)
+            }
         }
-        
         
         input = Input()
         input.inputView = keyboardView
@@ -103,7 +109,25 @@ extension ViewController: WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         if navigationAction.request.url?.scheme == "myapp" {
-            input.becomeFirstResponder()
+            
+            // Reset keyboard and put web view back to how it was.
+            if let id = activeId {
+                self.webView.evaluateJavaScript("document.getElementById('\(id)').id=''", completionHandler: nil)
+                self.input.text = nil
+            }
+            
+            if let dict = navigationAction.request.url?.queryItemsDictionary {
+                if let id = dict["id"] {
+                    activeId = id
+                    input.becomeFirstResponder()
+                    
+                    if let val = dict["val"] {
+                        input.text = val
+                    }
+                } else {
+                    activeId = nil
+                }
+            }
         }
         print(webView.url?.absoluteString)
         decisionHandler(.allow)
@@ -113,3 +137,14 @@ extension ViewController: WKNavigationDelegate {
     }
 }
 
+
+extension URL {
+    
+    var queryItemsDictionary: [String: String] {
+        var queryItemsDictionary = [String: String]()
+        guard let components = URLComponents(url: self, resolvingAgainstBaseURL: false), let queryItems = components.queryItems else { return queryItemsDictionary }
+        queryItems.forEach { queryItemsDictionary[$0.name] = $0.value }
+        return queryItemsDictionary
+    }
+    
+}
